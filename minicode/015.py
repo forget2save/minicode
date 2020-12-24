@@ -154,5 +154,5 @@ class Crowd:
 
 
 if __name__ == "__main__":
-    C = Crowd([-1, 1, -1, 1], 100, 2)
+    C = Crowd(20, 20)
     C.show()
