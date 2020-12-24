@@ -9,7 +9,7 @@ from matplotlib.animation import FuncAnimation
 # 感染率分别为无法感染，低风险，中风险，高风险
 InfectiousRate = [0, 0.1, 0.2, 0.3]
 # 经过多少时间转换状态，指E->I->R环节，S->E需要感染这个行为触发
-DurationThreshold = [0, 70, 300, 1e4]
+DurationThreshold = [0, 50, 50, 1e4]
 # 传播半径
 Radius = 0.1
 
@@ -64,7 +64,7 @@ class Person:
 
     # 时间流逝，促进某些过程转化
     def timePassBy(self):
-        if self.state != 0:
+        if self.state > 0 and self.state < 3:
             self.duration += 1
             if self.duration == DurationThreshold[self.state]:
                 self.state += 1
@@ -89,11 +89,12 @@ class Person:
 class Crowd:
     outOfBound = 100
     grid_num = int(4 / Radius)
-
     remove = outOfBound * np.ones(2)
     axis = [-1, 1, -1, 1]
     colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
     shapes = ["o", "s"]
+    endFlag = False
+    endDelay = 30
 
     def __init__(self, masked, unmasked, variety=8):
         # 新建图层
@@ -127,100 +128,76 @@ class Crowd:
             for i in range(self.variety)
         ]
         # 动画展示
-        self.ani = FuncAnimation(self.fig, self.animate, interval=50)
+        self.ani = FuncAnimation(self.fig, self.animate, interval=20)
 
     def covid(self):
-        for i in range(self.num - 1):
-            for j in range(i + 1, self.num):
-                dist = np.linalg.norm(self.people[i].pos - self.people[j].pos)
-                if dist < 0.25:
-                    if (
-                        self.people[i].state != self.people[j].state
-                        and self.people[i].immune != self.people[j].immune
-                    ):
-                        if random.uniform(0, 1) < self.people[j].infectiousRate:
-                            self.people[i].getVirus()
-                            self.people[j].getVirus()
-
-    def covidtwo(self):
-        for k in range(self.num):
-            if self.people[k].state == 2:
-                x, y = self.people[k].roughPos
+        for p in self.people:
+            if p.state == 1 or p.state == 2:
+                x, y = p.roughPos
                 resone = [[], [], []]
-                for i in self.pos_grid[x][y]:
-                    resone[0].append(i)
+                resone[0] = [i for i in self.pos_grid[x][y]]
                 if y + 1 < self.grid_num:
-                    for i in self.pos_grid[x][y + 1]:
-                        resone[1].append(i)
+                    resone[1].extend([i for i in self.pos_grid[x][y + 1]])
                 if x + 1 < self.grid_num:
-                    for i in self.pos_grid[x + 1][y]:
-                        resone[1].append(i)
+                    resone[1].extend([i for i in self.pos_grid[x + 1][y]])
                 if x > 0:
-                    for i in self.pos_grid[x - 1][y]:
-                        resone[1].append(i)
+                    resone[1].extend([i for i in self.pos_grid[x - 1][y]])
                 if y > 0:
-                    for i in self.pos_grid[x][y - 1]:
-                        resone[1].append(i)
-                if not self.people[k].masked:
+                    resone[1].extend([i for i in self.pos_grid[x][y - 1]])
+                if not p.masked:
                     if y + 1 < self.grid_num and x + 1 < self.grid_num:
-                        for i in self.pos_grid[x + 1][y + 1]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x + 1][y + 1]])
                     if y + 1 < self.grid_num and x > 0:
-                        for i in self.pos_grid[x - 1][y + 1]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x - 1][y + 1]])
                     if y > 0 and x > 0:
-                        for i in self.pos_grid[x - 1][y - 1]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x - 1][y - 1]])
                     if y > 0 and x + 1 < self.grid_num:
-                        for i in self.pos_grid[x + 1][y - 1]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x + 1][y - 1]])
                     if y + 2 < self.grid_num:
-                        for i in self.pos_grid[x][y + 2]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x][y + 2]])
                     if x + 2 < self.grid_num:
-                        for i in self.pos_grid[x + 2][y]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x + 2][y]])
                     if x > 1:
-                        for i in self.pos_grid[x - 2][y]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x - 2][y]])
                     if y > 1:
-                        for i in self.pos_grid[x][y - 2]:
-                            resone[2].append(i)
+                        resone[2].extend([i for i in self.pos_grid[x][y - 2]])
                 helpness = 0
-                if self.people[k].masked:
+                if p.masked:
                     helpness = 1
-                for num in resone[0]:
-                    self.people[num].getVirus(3 - helpness)
-                for num in resone[1]:
-                    self.people[num].getVirus(2 - helpness)
-                for num in resone[2]:
-                    self.people[num].getVirus(1 - helpness)
+                [
+                    [self.people[i].getVirus(3 - j - helpness) for i in resone[j]]
+                    for j in range(3)
+                ]
 
     def update(self):
-        for i in range(self.num):
-            x, y = self.people[i].roughPos
+        # 人群随机移动并改变状态
+        for i, p in enumerate(self.people):
+            x, y = p.roughPos
             self.pos_grid[x][y].remove(i)
-            self.people[i].randomMovement()
-            x, y = self.people[i].roughPos
+            p.randomMovement()
+            x, y = p.roughPos
             self.pos_grid[x][y].add(i)
-            self.people[i].timePassBy()
-        self.covidtwo()
-        for i in range(self.num):
+            p.timePassBy()
+        # 疾病传播
+        self.covid()
+        self.endFlag = True
+        # 可视化数据计算
+        for i, p in enumerate(self.people):
             for j in range(self.variety):
                 self.pos[j][:, i] = self.remove
-            tmp = self.people[i].state * 2
-            if self.people[i].masked:
+            tmp = p.state * 2
+            if p.masked:
                 tmp += 1
-            self.pos[tmp][:, i] = self.people[i].pos
+            if tmp > 1 and tmp < 6:
+                self.endFlag = False
+            self.pos[tmp][:, i] = p.pos
 
     def animate(self, _):
+        # 数据计算
         self.update()
-        # if self.patients == 0:
-        #     print("happy ending!")
-        #     plt.close()
-        # elif self.patients == self.num:
-        #     print("bad ending~")
-        #     plt.close()
+        if self.endFlag:
+            self.close()
+        # 可视化
         for i in range(self.variety):
             self.plots[i].set_data(self.pos[i])
         return self.plots
@@ -228,7 +205,12 @@ class Crowd:
     def show(self):
         plt.show()
 
+    def close(self):
+        self.endDelay -= 1
+        if self.endDelay == 0:
+            plt.close()
+
 
 if __name__ == "__main__":
-    C = Crowd(20, 20)
+    C = Crowd(masked=0, unmasked=100)
     C.show()
