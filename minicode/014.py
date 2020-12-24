@@ -253,3 +253,4 @@ def test_rgb():
 
 if __name__ == "__main__":
     test_rgb()
+    print("hello")

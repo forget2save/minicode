@@ -10,6 +10,8 @@ from matplotlib.animation import FuncAnimation
 InfectiousRate = [0, 0.1, 0.2, 0.3]
 # 经过多少时间转换状态，指E->I->R环节，S->E需要感染这个行为触发
 DurationThreshold = [0, 7, 3]
+# 传播半径
+Radius = 0.01
 
 # 戴口罩：正方形
 # 不戴口罩：圆形
