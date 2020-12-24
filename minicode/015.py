@@ -2,7 +2,7 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 
 # 这里是全局变量
@@ -95,11 +95,13 @@ class Crowd:
     shapes = ["o", "s"]
     endFlag = False
     endDelay = 30
+    time = [0]
+    tmp = [0 for _ in range(4)]
 
     def __init__(self, masked, unmasked, variety=8):
         # 新建图层
-        self.fig, self.ax = plt.subplots()
-        self.ax = plt.axis(self.axis)
+        self.fig, self.ax = plt.subplots(1, 2, figsize=(9, 4))
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
         # 基本参数
         self.variety = variety
         self.num = masked + unmasked
@@ -112,6 +114,7 @@ class Crowd:
         # 以给定人群比例构建对象
         self.people = [Person(i < self.masked) for i in range(self.num)]
         self.people[-1].state = 1
+        self.data = [[self.num - 1], [1], [0], [0]]
         # 逻辑坐标Map，并初始化
         self.pos_grid = [[] for i in range(self.grid_num)]
         for i in range(self.grid_num):
@@ -121,14 +124,23 @@ class Crowd:
             x, y = self.people[i].roughPos
             self.pos_grid[x][y].add(i)
         # 构建variety个图层，以不同图案与颜色区分
+        plt.subplot(121)
         self.plots = [
             plt.plot(
                 self.pos[i][0], self.pos[i][1], self.colors[i // 2] + self.shapes[i % 2]
             )[0]
             for i in range(self.variety)
         ]
+        plt.axis(self.axis)
+        plt.subplot(122)
+        self.lineplots = [
+            plt.plot(self.time, self.data[i], self.colors[i])[0] for i in range(4)
+        ]
+        plt.ylim(0, self.num)
         # 动画展示
-        self.ani = FuncAnimation(self.fig, self.animate, interval=20)
+        self.ani = FuncAnimation(
+            self.fig, self.animate, frames=range(1, 500), interval=20, repeat=False
+        )
 
     def covid(self):
         for p in self.people:
@@ -181,26 +193,33 @@ class Crowd:
         # 疾病传播
         self.covid()
         self.endFlag = True
+        self.tmp = [0 for _ in range(4)]
         # 可视化数据计算
         for i, p in enumerate(self.people):
             for j in range(self.variety):
                 self.pos[j][:, i] = self.remove
+            self.tmp[p.state] += 1
             tmp = p.state * 2
             if p.masked:
                 tmp += 1
             if tmp > 1 and tmp < 6:
                 self.endFlag = False
             self.pos[tmp][:, i] = p.pos
+        [self.data[i].append(self.tmp[i]) for i in range(4)]
 
-    def animate(self, _):
+    def animate(self, frame):
         # 数据计算
+        self.time.append(frame + 1)
         self.update()
         if self.endFlag:
-            self.close()
+            if self.close():
+                return
         # 可视化
         for i in range(self.variety):
             self.plots[i].set_data(self.pos[i])
-        return self.plots
+        [self.lineplots[i].set_data(self.time, self.data[i]) for i in range(4)]
+        plt.xlim(0, self.time[-1])
+        return [*self.plots, *self.lineplots]
 
     def show(self):
         plt.show()
@@ -209,8 +228,14 @@ class Crowd:
         self.endDelay -= 1
         if self.endDelay == 0:
             plt.close()
+            return True
+        return False
+
+    def save(self, path):
+        self.ani.save(path, writer=PillowWriter(fps=25))
 
 
 if __name__ == "__main__":
-    C = Crowd(masked=0, unmasked=100)
+    C = Crowd(masked=50, unmasked=50)
     C.show()
+    # C.save("covid.gif")
