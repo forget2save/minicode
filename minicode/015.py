@@ -9,9 +9,9 @@ from matplotlib.animation import FuncAnimation
 # 感染率分别为无法感染，低风险，中风险，高风险
 InfectiousRate = [0, 0.1, 0.2, 0.3]
 # 经过多少时间转换状态，指E->I->R环节，S->E需要感染这个行为触发
-DurationThreshold = [0, 7, 3]
+DurationThreshold = [0, 70, 300, 1e4]
 # 传播半径
-Radius = 0.01
+Radius = 0.1
 
 # 戴口罩：正方形
 # 不戴口罩：圆形
@@ -46,7 +46,7 @@ class Person:
     # 初始化，逻辑坐标从(-1,-1)为原点
     def __init__(self, masked, state=0):
         self.pos = np.random.uniform(low=-1, size=2)
-        self.roughPos = (self.pos - np.array([-1, -1])) / (Radius / 2)
+        self.roughPos = ((self.pos - np.array([-1, -1])) / (Radius / 2)).astype(np.int)
         self.delta = np.zeros(2)
         self.masked = masked
         self.state = state
@@ -83,12 +83,12 @@ class Person:
             elif self.pos[i] > self.boundary[1]:
                 self.pos[i] = 2 * self.boundary[1] - self.pos[i]
                 self.delta[i] = -self.delta[i]
-        self.roughPos = (self.pos - np.array([-1, -1])) / (Radius / 2)
+        self.roughPos = ((self.pos - np.array([-1, -1])) / (Radius / 2)).astype(np.int)
 
 
 class Crowd:
     outOfBound = 100
-    grid_num = 100
+    grid_num = int(4 / Radius)
 
     remove = outOfBound * np.ones(2)
     axis = [-1, 1, -1, 1]
@@ -104,22 +104,25 @@ class Crowd:
         self.num = masked + unmasked
         self.masked = masked
         self.unmasked = unmasked
-
-        self.pos_grid = [[] for i in range(self.grid_num)]
-        for i in range(self.grid_num):
-            for j in range(self.grid_num):
-                self.pos_grid[i].append(set())
-
         # 实际坐标*图案总数，outofbound代表不画
         self.pos = [
             self.outOfBound * np.ones((2, self.num)) for _ in range(self.variety)
         ]
         # 以给定人群比例构建对象
         self.people = [Person(i < self.masked) for i in range(self.num)]
+        self.people[-1].state = 1
+        # 逻辑坐标Map，并初始化
+        self.pos_grid = [[] for i in range(self.grid_num)]
+        for i in range(self.grid_num):
+            for j in range(self.grid_num):
+                self.pos_grid[i].append(set())
+        for i in range(self.num):
+            x, y = self.people[i].roughPos
+            self.pos_grid[x][y].add(i)
         # 构建variety个图层，以不同图案与颜色区分
         self.plots = [
             plt.plot(
-                self.pos[i][0], self.pos[i][1], self.colors[i % 4] + self.shapes[i % 2]
+                self.pos[i][0], self.pos[i][1], self.colors[i // 2] + self.shapes[i % 2]
             )[0]
             for i in range(self.variety)
         ]
@@ -139,113 +142,85 @@ class Crowd:
                             self.people[i].getVirus()
                             self.people[j].getVirus()
 
-    def covidone(self):
-<<<<<<< HEAD
-        resone = [[], [], []]
-        for i in self.pos_grid[x][y]:
-            resone[0].append(i)
-        if y + 1 < self.grid_num:
-            for i in self.pos_grid[x][y + 1]:
-                resone[1].append(i)
-        if x + 1 < self.grid_num:
-            for i in self.pos_grid[x + 1][y]:
-                resone[1].append(i)
-        if x > 0:
-            for i in self.pos_grid[x - 1][y]:
-                resone[1].append(i)
-        if y > 0:
-            for i in self.pos_grid[x][y - 1]:
-                resone[1].append(i)
-=======
-        for k in range(self.num):
-            if self.people[k].state == 2:
-                x, y =self.people[k].
-                resone = [] 
-                for i in self.pos_grid[x][y]:
-                    resone.append(i)
-                if(y+1 < self.grid_num):
-                    for i in self.pos_grid[x][y+1]:
-                        resone.append(i)
-                if(x+1 < self.grid_num):
-                    for i in self.pos_grid[x+1][y]:
-                        resone.append(i)
-                if(x > 0):
-                    for i in self.pos_grid[x-1][y]:
-                        resone.append(i)
-                if(y > 0):
-                    for i in self.pos_grid[x][y-1]:
-                        resone.append(i)
-                for num in resone:
-                    self.people[num].getVirus()
-
     def covidtwo(self):
         for k in range(self.num):
             if self.people[k].state == 2:
-                x, y =self.people[k].
-                resone = [[],[],[]]
+                x, y = self.people[k].roughPos
+                resone = [[], [], []]
                 for i in self.pos_grid[x][y]:
                     resone[0].append(i)
-                if(y+1 < self.grid_num):
-                    for i in self.pos_grid[x][y+1]:
+                if y + 1 < self.grid_num:
+                    for i in self.pos_grid[x][y + 1]:
                         resone[1].append(i)
-                if(x+1 < self.grid_num):
-                    for i in self.pos_grid[x+1][y]:
+                if x + 1 < self.grid_num:
+                    for i in self.pos_grid[x + 1][y]:
                         resone[1].append(i)
-                if(x > 0):
-                    for i in self.pos_grid[x-1][y]:
+                if x > 0:
+                    for i in self.pos_grid[x - 1][y]:
                         resone[1].append(i)
-                if(y > 0):
-                    for i in self.pos_grid[x][y-1]:
+                if y > 0:
+                    for i in self.pos_grid[x][y - 1]:
                         resone[1].append(i)
-                if(y+1 < self.grid_num and x+1 < self.grid_num):
-                        for i in self.pos_grid[x+1][y+1]:
-                        resone[2].append(i)
-                if(y+1 < self.grid_num and x > 0):
-                        for i in self.pos_grid[x-1][y+1]:
-                        resone[2].append(i)
-                if(y > 0 and x > 0):
-                        for i in self.pos_grid[x-1][y-1]:
-                        resone[2].append(i)      
-                if(y > 0 and x+1 < self.grid_num):
-                        for i in self.pos_grid[x+1][y-1]:
-                        resone[2].append(i)                          
-                if(y+2 < self.grid_num):
-                    for i in self.pos_grid[x][y+2]:
-                        resone[2].append(i)
-                if(x+2 < self.grid_num):
-                    for i in self.pos_grid[x+2][y]:
-                        resone[2].append(i)
-                if(x > 1):
-                    for i in self.pos_grid[x-2][y]:
-                        resone[2].append(i)
-                if(y > 1):
-                    for i in self.pos_grid[x][y-2]:
-                        resone[2].append(i)                        
+                if not self.people[k].masked:
+                    if y + 1 < self.grid_num and x + 1 < self.grid_num:
+                        for i in self.pos_grid[x + 1][y + 1]:
+                            resone[2].append(i)
+                    if y + 1 < self.grid_num and x > 0:
+                        for i in self.pos_grid[x - 1][y + 1]:
+                            resone[2].append(i)
+                    if y > 0 and x > 0:
+                        for i in self.pos_grid[x - 1][y - 1]:
+                            resone[2].append(i)
+                    if y > 0 and x + 1 < self.grid_num:
+                        for i in self.pos_grid[x + 1][y - 1]:
+                            resone[2].append(i)
+                    if y + 2 < self.grid_num:
+                        for i in self.pos_grid[x][y + 2]:
+                            resone[2].append(i)
+                    if x + 2 < self.grid_num:
+                        for i in self.pos_grid[x + 2][y]:
+                            resone[2].append(i)
+                    if x > 1:
+                        for i in self.pos_grid[x - 2][y]:
+                            resone[2].append(i)
+                    if y > 1:
+                        for i in self.pos_grid[x][y - 2]:
+                            resone[2].append(i)
+                helpness = 0
+                if self.people[k].masked:
+                    helpness = 1
                 for num in resone[0]:
-                    self.people[num].getVirus()
-
->>>>>>> dbf53a63916057bd3b12cd3a3fadbf27eed6db06
+                    self.people[num].getVirus(3 - helpness)
+                for num in resone[1]:
+                    self.people[num].getVirus(2 - helpness)
+                for num in resone[2]:
+                    self.people[num].getVirus(1 - helpness)
 
     def update(self):
         for i in range(self.num):
+            x, y = self.people[i].roughPos
+            self.pos_grid[x][y].remove(i)
             self.people[i].randomMovement()
-            self.people[i].recover()
-        self.covid()
-        self.patients = 0
-        # for i in range(self.num):
-        #     for j in range(self.variety):
-        #         self.pos[j][:, i] = self.remove
-        #     self.pos[self.people[i].state][:, i] = self.people[i].pos
-        #     self.patients += self.people[i].state
+            x, y = self.people[i].roughPos
+            self.pos_grid[x][y].add(i)
+            self.people[i].timePassBy()
+        self.covidtwo()
+        for i in range(self.num):
+            for j in range(self.variety):
+                self.pos[j][:, i] = self.remove
+            tmp = self.people[i].state * 2
+            if self.people[i].masked:
+                tmp += 1
+            self.pos[tmp][:, i] = self.people[i].pos
 
     def animate(self, _):
         self.update()
-        if self.patients == 0:
-            print("happy ending!")
-            plt.close()
-        elif self.patients == self.num:
-            print("bad ending~")
-            plt.close()
+        # if self.patients == 0:
+        #     print("happy ending!")
+        #     plt.close()
+        # elif self.patients == self.num:
+        #     print("bad ending~")
+        #     plt.close()
         for i in range(self.variety):
             self.plots[i].set_data(self.pos[i])
         return self.plots
