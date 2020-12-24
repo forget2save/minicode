@@ -41,31 +41,36 @@ Radius = 0.01
 
 
 class Person:
-    infectiousRate = 0.1
     boundary = np.array([-1, 1])
 
+    # 初始化，逻辑坐标从(-1,-1)为原点
     def __init__(self, masked, state=0):
         self.pos = np.random.uniform(low=-1, size=2)
+        self.roughPos = (self.pos - np.array([-1, -1])) / (Radius / 2)
         self.delta = np.zeros(2)
         self.masked = masked
         self.state = state
         self.step = 0.02
         self.momentum = 0.95
         self.duration = 0
-        self.immune = False
 
-    def getVirus(self):
-        if self.state == 0 and self.immune == False:
-            self.state = 1
-            self.duration = 100
-            self.immune = True
+    # 根据暴露的危险概率患病
+    def getVirus(self, dangerLevel):
+        if self.state == 0:
+            if self.masked:
+                dangerLevel -= 1
+            if random.random() < InfectiousRate[dangerLevel]:
+                self.state = 1
 
-    def recover(self):
-        if self.duration != 0:
-            self.duration -= 1
-            if self.duration == 0:
-                self.state = 0
+    # 时间流逝，促进某些过程转化
+    def timePassBy(self):
+        if self.state != 0:
+            self.duration += 1
+            if self.duration == DurationThreshold[self.state]:
+                self.state += 1
+                self.duration = 0
 
+    # 随机移动并更新逻辑坐标
     def randomMovement(self):
         self.delta = self.momentum * self.delta + self.step * np.random.uniform(
             low=-1, size=2
@@ -78,13 +83,13 @@ class Person:
             elif self.pos[i] > self.boundary[1]:
                 self.pos[i] = 2 * self.boundary[1] - self.pos[i]
                 self.delta[i] = -self.delta[i]
+        self.roughPos = (self.pos - np.array([-1, -1])) / (Radius / 2)
 
 
 class Crowd:
     outOfBound = 100
-    
     grid_num = 100
-    
+
     remove = outOfBound * np.ones(2)
     axis = [-1, 1, -1, 1]
     colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
@@ -135,22 +140,21 @@ class Crowd:
                             self.people[j].getVirus()
 
     def covidone(self):
-        resone = []
+        resone = [[], [], []]
         for i in self.pos_grid[x][y]:
-            resone.append(i)
-        if(y+1 < self.grid_num):
-            for i in self.pos_grid[x][y+1]:
-                resone.append(i)
-        if(x+1 < self.grid_num):
-            for i in self.pos_grid[x+1][y]:
-                resone.append(i)
-        if(x > 0):
-            for i in self.pos_grid[x-1][y]:
-                resone.append(i)
-        if(y > 0):
-            for i in self.pos_grid[x][y-1]:
-                resone.append(i)
-
+            resone[0].append(i)
+        if y + 1 < self.grid_num:
+            for i in self.pos_grid[x][y + 1]:
+                resone[1].append(i)
+        if x + 1 < self.grid_num:
+            for i in self.pos_grid[x + 1][y]:
+                resone[1].append(i)
+        if x > 0:
+            for i in self.pos_grid[x - 1][y]:
+                resone[1].append(i)
+        if y > 0:
+            for i in self.pos_grid[x][y - 1]:
+                resone[1].append(i)
 
     def update(self):
         for i in range(self.num):
@@ -158,11 +162,11 @@ class Crowd:
             self.people[i].recover()
         self.covid()
         self.patients = 0
-        for i in range(self.num):
-            for j in range(self.variety):
-                self.pos[j][:, i] = self.remove
-            self.pos[self.people[i].state][:, i] = self.people[i].pos
-            self.patients += self.people[i].state
+        # for i in range(self.num):
+        #     for j in range(self.variety):
+        #         self.pos[j][:, i] = self.remove
+        #     self.pos[self.people[i].state][:, i] = self.people[i].pos
+        #     self.patients += self.people[i].state
 
     def animate(self, _):
         self.update()
