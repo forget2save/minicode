@@ -28,7 +28,6 @@ Radius = 0.1
 # 基本参数1：传播范围
 # R代表被政府发现已经隔离的人
 # 基本参数1：多少天隔离，检测能力
-# 进阶参数1：对密切接触者的排查能力
 
 # Person的基本参数
 # state：0->1->2->3 状态：S->E->I->R
@@ -41,7 +40,7 @@ Radius = 0.1
 
 
 class Person:
-    boundary = np.array([-1, 1])
+    boundary = np.array([-1, 1, -1, 1], dtype=np.float)
 
     # 初始化，逻辑坐标从(-1,-1)为原点
     def __init__(self, masked, state=0):
@@ -65,10 +64,20 @@ class Person:
     # 时间流逝，促进某些过程转化
     def timePassBy(self):
         if self.state > 0 and self.state < 3:
-            self.duration += 1
-            if self.duration == DurationThreshold[self.state]:
+            self.duration += random.randint(0, 2)
+            if self.duration >= DurationThreshold[self.state]:
                 self.state += 1
                 self.duration = 0
+
+    # 限制人群移动
+    def setBoundary(self, level):
+        for i in range(4):
+            if i % 2 == 0:
+                self.boundary[i] = self.pos[i // 2] - 1 / level
+            else:
+                self.boundary[i] = self.pos[i // 2] + 1 / level
+        self.boundary = np.clip(self.boundary, -1, 1)
+        self.step /= level
 
     # 随机移动并更新逻辑坐标
     def randomMovement(self):
@@ -77,11 +86,11 @@ class Person:
         )
         self.pos += self.delta
         for i in range(2):
-            if self.pos[i] < self.boundary[0]:
-                self.pos[i] = 2 * self.boundary[0] - self.pos[i]
+            if self.pos[i] < self.boundary[2 * i]:
+                self.pos[i] = 2 * self.boundary[2 * i] - self.pos[i]
                 self.delta[i] = -self.delta[i]
-            elif self.pos[i] > self.boundary[1]:
-                self.pos[i] = 2 * self.boundary[1] - self.pos[i]
+            elif self.pos[i] > self.boundary[2 * i + 1]:
+                self.pos[i] = 2 * self.boundary[2 * i + 1] - self.pos[i]
                 self.delta[i] = -self.delta[i]
         self.roughPos = ((self.pos - np.array([-1, -1])) / (Radius / 2)).astype(np.int)
 
@@ -138,8 +147,9 @@ class Crowd:
         ]
         plt.ylim(0, self.num)
         # 动画展示
+        # [p.setBoundary(2) for p in self.people]
         self.ani = FuncAnimation(
-            self.fig, self.animate, frames=range(1, 500), interval=20, repeat=False
+            self.fig, self.animate, frames=range(1, 1000), interval=20, repeat=False
         )
 
     def covid(self):
@@ -236,6 +246,6 @@ class Crowd:
 
 
 if __name__ == "__main__":
-    C = Crowd(masked=50, unmasked=50)
+    C = Crowd(masked=50, unmasked=20)
     C.show()
     # C.save("covid.gif")
