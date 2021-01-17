@@ -108,10 +108,7 @@ class Crowd:
     time = [0]
     tmp = [0 for _ in range(4)]
 
-    def __init__(self, masked, unmasked, variety=8, socialDist=1):
-        # 新建图层
-        self.fig, self.ax = plt.subplots(1, 2, figsize=(9, 4))
-        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+    def __init__(self, masked, unmasked, variety=8, socialDist=1, simulateOnly=False):
         # 基本参数
         self.variety = variety
         self.num = masked + unmasked
@@ -133,6 +130,15 @@ class Crowd:
         for i in range(self.num):
             x, y = self.people[i].roughPos
             self.pos_grid[x][y].add(i)
+        if socialDist > 1:
+            [p.setBoundary(socialDist) for p in self.people]
+        if simulateOnly:
+            while self.simulate():
+                pass
+            return
+        # 新建图层
+        self.fig, self.ax = plt.subplots(1, 2, figsize=(9, 4))
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
         # 构建variety个图层，以不同图案与颜色区分
         plt.subplot(121)
         self.plots = [
@@ -148,8 +154,6 @@ class Crowd:
         ]
         plt.ylim(0, self.num)
         # 动画展示
-        if socialDist > 1:
-            [p.setBoundary(socialDist) for p in self.people]
         self.ani = FuncAnimation(
             self.fig, self.animate, frames=range(1, 500), interval=20, repeat=False
         )
@@ -219,6 +223,31 @@ class Crowd:
             self.pos[tmp][:, i] = p.pos
         [self.data[i].append(self.tmp[i]) for i in range(4)]
 
+    def simulate(self):
+        if not self.endFlag:
+            self.update()
+            return True
+        else:
+            sts = np.zeros(4, dtype=np.int)
+            for p in self.people:
+                if p.masked and p.state == 0:
+                    sts[0] += 1
+                elif p.masked and p.state == 3:
+                    sts[1] += 1
+                elif not p.masked and p.state == 0:
+                    sts[2] += 1
+                elif not p.masked and p.state == 3:
+                    sts[3] += 1
+            self.print(sts)
+            return False
+
+    def print(self, sts):
+        self.sts = sts
+        print(f"  戴口罩幸存者：{sts[0]:3d}")
+        print(f"  戴口罩患病者：{sts[1]:3d}")
+        print(f"不戴口罩幸存者：{sts[2]:3d}")
+        print(f"不戴口罩患病者：{sts[3]:3d}")
+
     def animate(self, frame):
         # 数据计算
         if self.endFlag:
@@ -250,7 +279,24 @@ class Crowd:
 if __name__ == "__main__":
     # C = Crowd(masked=100, unmasked=0)
     # C.save("covid_all_mask.gif")
-    C = Crowd(masked=50, unmasked=50, socialDist=4)
-    C.save("covid_social_distance.gif")
+    # C = Crowd(masked=50, unmasked=50, socialDist=4)
+    # C.save("covid_social_distance.gif")
     # C = Crowd(masked=0, unmasked=100)
     # C.save("covid_no_mask.gif")
+    mRes = np.zeros(9)
+    uRes = np.zeros(9)
+    mNum = np.linspace(10, 90, 9)
+    for _ in range(10):
+        for m in range(10, 100, 10):
+            C = Crowd(m, 100 - m, socialDist=1, simulateOnly=True)
+            mRes[m // 10 - 1] += 10 * C.sts[1] / m
+            uRes[m // 10 - 1] += 10 * C.sts[3] / (100 - m)
+    fig = plt.figure(figsize=(8, 4))
+    plt.plot(mNum, mRes, label="masked")
+    plt.plot(mNum, uRes, label="unmasked")
+    plt.xlim((0, 100))
+    plt.ylim((0, 100))
+    plt.xlabel("masked rate(%)")
+    plt.ylabel("infectious rate(%)")
+    plt.legend()
+    plt.savefig("stsRes.jpg")
