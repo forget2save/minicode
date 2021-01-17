@@ -1,5 +1,6 @@
 # coding:utf-8
 import random
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -77,7 +78,7 @@ class Person:
             else:
                 self.boundary[i] = self.pos[i // 2] + 1 / level
         self.boundary = np.clip(self.boundary, -1, 1)
-        self.step /= level
+        self.step /= math.sqrt(level)
 
     # 随机移动并更新逻辑坐标
     def randomMovement(self):
@@ -107,7 +108,7 @@ class Crowd:
     time = [0]
     tmp = [0 for _ in range(4)]
 
-    def __init__(self, masked, unmasked, variety=8):
+    def __init__(self, masked, unmasked, variety=8, socialDist=1):
         # 新建图层
         self.fig, self.ax = plt.subplots(1, 2, figsize=(9, 4))
         plt.subplots_adjust(wspace=0.4, hspace=0.4)
@@ -147,9 +148,10 @@ class Crowd:
         ]
         plt.ylim(0, self.num)
         # 动画展示
-        # [p.setBoundary(2) for p in self.people]
+        if socialDist > 1:
+            [p.setBoundary(socialDist) for p in self.people]
         self.ani = FuncAnimation(
-            self.fig, self.animate, frames=range(1, 1000), interval=20, repeat=False
+            self.fig, self.animate, frames=range(1, 500), interval=20, repeat=False
         )
 
     def covid(self):
@@ -219,11 +221,11 @@ class Crowd:
 
     def animate(self, frame):
         # 数据计算
-        self.time.append(frame + 1)
-        self.update()
         if self.endFlag:
             if self.close():
                 return
+        self.time.append(frame + 1)
+        self.update()
         # 可视化
         for i in range(self.variety):
             self.plots[i].set_data(self.pos[i])
@@ -235,10 +237,10 @@ class Crowd:
         plt.show()
 
     def close(self):
-        self.endDelay -= 1
         if self.endDelay == 0:
             plt.close()
             return True
+        self.endDelay -= 1
         return False
 
     def save(self, path):
@@ -246,6 +248,9 @@ class Crowd:
 
 
 if __name__ == "__main__":
-    C = Crowd(masked=50, unmasked=20)
-    C.show()
-    # C.save("covid.gif")
+    # C = Crowd(masked=100, unmasked=0)
+    # C.save("covid_all_mask.gif")
+    C = Crowd(masked=50, unmasked=50, socialDist=4)
+    C.save("covid_social_distance.gif")
+    # C = Crowd(masked=0, unmasked=100)
+    # C.save("covid_no_mask.gif")
