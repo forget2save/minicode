@@ -286,11 +286,11 @@ if __name__ == "__main__":
     mRes = np.zeros(9)
     uRes = np.zeros(9)
     mNum = np.linspace(10, 90, 9)
-    for _ in range(10):
+    for _ in range(20):
         for m in range(10, 100, 10):
             C = Crowd(m, 100 - m, socialDist=1, simulateOnly=True)
-            mRes[m // 10 - 1] += 10 * C.sts[1] / m
-            uRes[m // 10 - 1] += 10 * C.sts[3] / (100 - m)
+            mRes[m // 10 - 1] += 5 * C.sts[1] / m
+            uRes[m // 10 - 1] += 5 * C.sts[3] / (100 - m)
     fig = plt.figure(figsize=(8, 4))
     plt.plot(mNum, mRes, label="masked")
     plt.plot(mNum, uRes, label="unmasked")
