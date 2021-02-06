@@ -6,10 +6,14 @@ from security import username, password, driverPath
 
 
 def click(driver, xpath):
-    driver.find_element_by_xpath(xpath).click()
+    try:
+        driver.find_element_by_xpath(xpath).click()
+    except Exception as e:
+        print(e)
 
 
 def main():
+    # 确保在校网环境
     website = "https://healthreport.zju.edu.cn/ncov/wap/default/index"
     driver = webdriver.Edge(executable_path=driverPath)
     driver.get(website)
@@ -43,7 +47,9 @@ def main():
         click(driver, f'//*[@name="{key}"]/div/div[{value}]/span')
     click(driver, "//div[@name='area']/input")
     sleep(1)
-    click(driver, "//a[@class='wapcf-btn-qx']")
+    click(driver, "//div[@class='footers']/a")
+    sleep(1)
+    click(driver, "//div[@class='wapcf-btn-box']/div[2]")
     sleep(1)
     driver.close()
 
